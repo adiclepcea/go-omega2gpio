@@ -55,7 +55,7 @@ var (
 	registerDclr2Offset = 402
 )
 
-func getDirection(pinNo int) int {
+func getDirection(pinNo int) uint32 {
 	index := (pinNo) / 32
 	offset := registerCtrlOffset[index]
 	gpio := uint32(pinNo % 32)
@@ -69,8 +69,34 @@ func getDirection(pinNo int) int {
 
 	log.Printf("%s => %d, gpio=%d,pinNo=%d, byteVal=%d, index=%d\n", strconv.FormatInt(int64(byteVal), 2), val, gpio, pinNo, byteVal, index)
 
-	return offset
+	return val
 
+}
+
+func setDirection(pinNo int, val uint8) {
+
+}
+
+func set(pinNo int, val uint8) {
+
+	var offset int
+	gpio := uint32(pinNo % 32)
+	index := (pinNo) / 32
+
+	if val == 0 {
+		offset = registerDclrOffset[index]
+	} else {
+		offset = registerDsetOffset[index]
+	}
+
+	regVal := (uint32(1) << gpio)
+
+	log.Printf("reg=%d\n", regVal)
+
+	//memlock.Lock()
+	//defer memlock.Unlock()
+
+	mmap[offset] = regVal
 }
 
 func main() {
@@ -101,4 +127,5 @@ func main() {
 
 	fmt.Println("OK")
 	fmt.Printf("offsets: pin 18=%d, pin 31=%d, pin 32=%d", getDirection(18), getDirection(31), getDirection(32))
+	set(18, 1)
 }
