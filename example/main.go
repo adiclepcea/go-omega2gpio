@@ -77,28 +77,4 @@ func main() {
 
 	}
 
-	/*status := int64(1)
-	if len(os.Args) > 1 {
-		status, err = strconv.ParseInt(os.Args[1], 10, 64)
-		if err != nil {
-			log.Printf("Error parsing arg %s\n", err.Error())
-		}
-		if status != 0 {
-			status = 1
-		}
-
-	}
-
-	onion.Setup()
-
-	onion.SetDirection(18, 0)
-
-	fmt.Println("OK")
-	fmt.Printf("offsets: pin 18=%d, pin 31=%d, pin 32=%d", onion.GetDirection(18), onion.GetDirection(31), onion.GetDirection(32))
-	if onion.GetDirection(18) != 1 {
-		onion.SetDirection(18, 1)
-	}
-	onion.Write(18, uint8(status))
-	log.Printf("Pin 18 has now value: %d\n", onion.Read(18))
-	*/
 }
