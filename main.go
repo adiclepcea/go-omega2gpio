@@ -55,19 +55,25 @@ var (
 	registerDclr2Offset = 402
 )
 
+func readRegistry(index int) uint32 {
+
+	offset := registerCtrlOffset[index]
+
+	regVal := uint32(mmap[offset+index])
+
+	return regVal
+}
+
 func getDirection(pinNo int) uint32 {
 	index := (pinNo) / 32
-	offset := registerCtrlOffset[index]
+
+	regVal := readRegistry(index)
+
 	gpio := uint32(pinNo % 32)
 
-	byteVal := uint32(mmap[offset+index])
-	//byteVal = byteVal<<8 | uint32(mmap[offset+index+1])
-	//byteVal = byteVal<<8 | uint32(mmap[offset+index+2])
-	//byteVal = byteVal<<8 | uint32(mmap[offset+index+3])
+	val := ((regVal >> gpio) & 0x1)
 
-	val := ((byteVal >> gpio) & 0x1)
-
-	log.Printf("%s => %d, gpio=%d,pinNo=%d, byteVal=%d, index=%d\n", strconv.FormatInt(int64(byteVal), 2), val, gpio, pinNo, byteVal, index)
+	log.Printf("%s => %d, gpio=%d,pinNo=%d, byteVal=%d, index=%d\n", strconv.FormatInt(int64(regVal), 2), val, gpio, pinNo, regVal, index)
 
 	return val
 
@@ -75,9 +81,27 @@ func getDirection(pinNo int) uint32 {
 
 func setDirection(pinNo int, val uint8) {
 
+	index := (pinNo) / 32
+
+	regVal := readRegistry(index)
+	gpio := uint32(pinNo % 32)
+
+	if val == 1 {
+		regVal |= (1 << gpio)
+	} else {
+		regVal &= ^(1 << gpio)
+	}
+
+	offset := registerCtrlOffset[index]
+
+	memlock.Lock()
+
+	defer memlock.Unlock()
+
+	mmap[offset] = regVal
 }
 
-func set(pinNo int, val uint8) {
+func write(pinNo int, val uint8) {
 
 	var offset int
 	gpio := uint32(pinNo % 32)
@@ -93,14 +117,30 @@ func set(pinNo int, val uint8) {
 
 	log.Printf("reg=%d\n", regVal)
 
-	//memlock.Lock()
-	//defer memlock.Unlock()
+	memlock.Lock()
+	defer memlock.Unlock()
 
 	mmap[offset] = regVal
 }
 
-func main() {
+func read(pinNo int) uint32 {
+	var offset int
+	gpio := uint32(pinNo % 32)
+	index := (pinNo) / 32
 
+	offset = registerDataOffset[index]
+
+	memlock.Lock()
+
+	defer memlock.Unlock()
+
+	regVal := uint32(mmap[offset+index])
+
+	return ((regVal >> gpio) & 0x1)
+
+}
+
+func setup() {
 	mfd, err := os.OpenFile("/dev/mem", os.O_RDWR, 0)
 
 	if err != nil {
@@ -124,8 +164,32 @@ func main() {
 	header.Cap /= (32 / 8)
 
 	mmap = *(*[]uint32)(unsafe.Pointer(&header))
+}
+
+func main() {
+	var err error
+	status := int64(1)
+	if len(os.Args) > 1 {
+		status, err = strconv.ParseInt(os.Args[1], 10, 64)
+		if err != nil {
+			log.Printf("Error parsing arg %s\n", err.Error())
+		}
+		if status != 0 {
+			status = 1
+		}
+
+	}
+
+	setup()
+
+	setDirection(18, 0)
 
 	fmt.Println("OK")
 	fmt.Printf("offsets: pin 18=%d, pin 31=%d, pin 32=%d", getDirection(18), getDirection(31), getDirection(32))
-	set(18, 1)
+	if getDirection(18) != 1 {
+		setDirection(18, 1)
+	}
+	write(18, uint8(status))
+	log.Printf("Pin 18 has now value: %d\n", read(18))
+
 }
