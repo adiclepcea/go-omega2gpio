@@ -1,11 +1,9 @@
-package main
+package onion
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"reflect"
-	"strconv"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -64,7 +62,8 @@ func readRegistry(index int) uint32 {
 	return regVal
 }
 
-func getDirection(pinNo int) uint32 {
+//GetDirection shows a 1 if the pinNo is set to output or a zero for input
+func GetDirection(pinNo int) uint32 {
 	index := (pinNo) / 32
 
 	regVal := readRegistry(index)
@@ -73,13 +72,13 @@ func getDirection(pinNo int) uint32 {
 
 	val := ((regVal >> gpio) & 0x1)
 
-	log.Printf("%s => %d, gpio=%d,pinNo=%d, byteVal=%d, index=%d\n", strconv.FormatInt(int64(regVal), 2), val, gpio, pinNo, regVal, index)
-
 	return val
 
 }
 
-func setDirection(pinNo int, val uint8) {
+//SetDirection sets the pinNo to the value val. If val is 0, the port will be set to input
+//otherwise it will be set to output
+func SetDirection(pinNo int, val uint8) {
 
 	index := (pinNo) / 32
 
@@ -101,7 +100,9 @@ func setDirection(pinNo int, val uint8) {
 	mmap[offset] = regVal
 }
 
-func write(pinNo int, val uint8) {
+//Write writes 1 or 0 to pinNo. If val is 0, the pinNo will be set to Low (0)
+//otherwise it will be set to high(1)
+func Write(pinNo int, val uint8) {
 
 	var offset int
 	gpio := uint32(pinNo % 32)
@@ -115,15 +116,14 @@ func write(pinNo int, val uint8) {
 
 	regVal := (uint32(1) << gpio)
 
-	log.Printf("reg=%d\n", regVal)
-
 	memlock.Lock()
 	defer memlock.Unlock()
 
 	mmap[offset] = regVal
 }
 
-func read(pinNo int) uint32 {
+//Read gets 0 if the pinNo  is set to low and 1 if the pin is set to high
+func Read(pinNo int) uint32 {
 	var offset int
 	gpio := uint32(pinNo % 32)
 	index := (pinNo) / 32
@@ -140,7 +140,8 @@ func read(pinNo int) uint32 {
 
 }
 
-func setup() {
+//Setup prepares the library for future calls. If this is not set up, all calls will fail
+func Setup() {
 	mfd, err := os.OpenFile("/dev/mem", os.O_RDWR, 0)
 
 	if err != nil {
@@ -159,37 +160,10 @@ func setup() {
 		log.Panicf("Error mapping: %s\n", err.Error())
 	}
 
-	header := *(*reflect.SliceHeader)(unsafe.Pointer(&mmap8))
-	header.Len /= (32 / 8) // (32 bit = 4 bytes)
-	header.Cap /= (32 / 8)
+	//transform from 8 bit to 32 bit
+	conv := *(*reflect.SliceHeader)(unsafe.Pointer(&mmap8))
+	conv.Len /= (32 / 8)
+	conv.Cap /= (32 / 8)
 
-	mmap = *(*[]uint32)(unsafe.Pointer(&header))
-}
-
-func main() {
-	var err error
-	status := int64(1)
-	if len(os.Args) > 1 {
-		status, err = strconv.ParseInt(os.Args[1], 10, 64)
-		if err != nil {
-			log.Printf("Error parsing arg %s\n", err.Error())
-		}
-		if status != 0 {
-			status = 1
-		}
-
-	}
-
-	setup()
-
-	setDirection(18, 0)
-
-	fmt.Println("OK")
-	fmt.Printf("offsets: pin 18=%d, pin 31=%d, pin 32=%d", getDirection(18), getDirection(31), getDirection(32))
-	if getDirection(18) != 1 {
-		setDirection(18, 1)
-	}
-	write(18, uint8(status))
-	log.Printf("Pin 18 has now value: %d\n", read(18))
-
+	mmap = *(*[]uint32)(unsafe.Pointer(&conv))
 }
