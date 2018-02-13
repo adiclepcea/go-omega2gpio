@@ -1,3 +1,5 @@
+// +build linux,mipsle
+
 package onion
 
 import (
