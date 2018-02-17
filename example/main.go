@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	onion "github.com/adiclepcea/go-omega2gpio"
 )
@@ -15,7 +16,8 @@ func showUsage() {
 	%s get-direction <gpio>
 	%s read <gpio>
 	%s set <gpio> <value: 0 or 1>
-`, os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
+	%s pwm <gpio> <freq in HZ> <duty cycle percentage>
+`, os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
 }
 
 func main() {
@@ -74,6 +76,33 @@ func main() {
 		}
 
 		onion.Write(int(pin), uint8(argInt))
+		break
+	case "pwm":
+		if len(os.Args) < 5 {
+			showUsage()
+			break
+		}
+		freqInt, err := strconv.ParseUint(os.Args[3], 10, 64)
+
+		if err != nil {
+			showUsage()
+			return
+		}
+
+		dutyInt, err := strconv.ParseUint(os.Args[4], 10, 64)
+
+		if err != nil || dutyInt > 100 {
+			showUsage()
+			return
+		}
+
+		go onion.SPwm(int(pin), int(freqInt), int(dutyInt))
+
+		time.Sleep(3000 * time.Millisecond)
+
+		go onion.StopPwm(int(pin))
+
+		time.Sleep(3 * time.Second)
 
 	}
 

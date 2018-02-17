@@ -3,11 +3,14 @@
 package onion
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -53,6 +56,8 @@ var (
 	registerDclr1Offset = 401
 	//GPIO_DCLR_2 10000648(GPIO64-95)
 	registerDclr2Offset = 402
+
+	stop [47]atomic.Value
 )
 
 func readRegistry(index int) uint32 {
@@ -168,4 +173,67 @@ func Setup() {
 	conv.Cap /= (32 / 8)
 
 	mmap = *(*[]uint32)(unsafe.Pointer(&conv))
+
+	for i := 0; i < 47; i++ {
+		stop[i].Store(false)
+	}
+
+}
+
+//StopPwm will set the stop condition for the SPwm function
+func StopPwm(pinNo int) {
+	if pinNo < len(stop) {
+		stop[pinNo].Store(true)
+	}
+}
+
+//Pwm is a function that will start a PWM on the desired port.
+//This function is not stoppable an will run until the program ends
+func Pwm(pinNo int, freq int, duty int) {
+	dutyCyle := (float32(duty)) / 100.0
+	period := (1.0 / float32(freq)) * 1000.0
+	periodHigh := period * dutyCyle
+	periodLow := period - (period * dutyCyle)
+
+	dHigh := (time.Duration(periodHigh*1000) * time.Microsecond)
+	dLow := (time.Duration(periodLow*1000) * time.Microsecond)
+
+	SetDirection(pinNo, 1)
+
+	for {
+		Write(pinNo, 1)
+		time.Sleep(dHigh)
+		Write(pinNo, 0)
+		time.Sleep(dLow)
+	}
+}
+
+//SPwm or StoppablePwm is a function that starts a PWM on the desired port
+//As opossed to the Pwm function, this can be stopped by calling the StopPWM function
+//The difference is that this function is less exact that the Pwm function because
+//it has to check for the stop condition on every iteration
+//If you need more precision, you need to use the Pwm function
+func SPwm(pinNo int, freq int, duty int) {
+	dutyCyle := (float32(duty)) / 100.0
+	period := (1.0 / float32(freq)) * 1000.0
+	periodHigh := period * dutyCyle
+	periodLow := period - (period * dutyCyle)
+
+	dHigh := (time.Duration(periodHigh*1000) * time.Microsecond)
+	dLow := (time.Duration(periodLow*1000) * time.Microsecond)
+
+	SetDirection(pinNo, 1)
+
+	fmt.Printf("pinNo=%d, duty=%f, period=%f, periodHigh=%f,periodLow=%f HIGH=%d, LOW=%d\n", pinNo, dutyCyle, period, periodHigh, periodLow, dHigh, dLow)
+
+	for {
+		Write(pinNo, 1)
+		time.Sleep(dHigh)
+		Write(pinNo, 0)
+		time.Sleep(dLow)
+		if stop[pinNo].Load().(bool) {
+			break
+		}
+	}
+
 }
