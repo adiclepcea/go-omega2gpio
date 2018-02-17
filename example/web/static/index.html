@@ -1,0 +1,106 @@
+<html>
+    <head>
+        <title>
+            Go-Omega2Gpio
+        </title>
+        <style>
+            body {
+                font-family:Georgia, 'Times New Roman', Times, serif;
+                font-size: 14px
+            }
+            .title {
+                font-size: 20px;
+                font-weight: bold;
+                text-align: center;
+                background-color: cadetblue;
+                height: 50px;
+                border-radius: 25px;
+            }
+        </style>
+        <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    </head>
+    <body>
+        <div class="title">Go-Omega2Gpio test</div>
+
+        <br/>
+        <div>
+            GPIO
+            <input type="number" value="18" min=0 max=46 size=3 id="gpio"/>
+            <button onclick="onoff()">On/Off</button>
+            <div id="gpioVal"></div>
+        </div>
+        <br/>
+        <div>
+            <table>
+                <tr>
+                    <td>HZ</td><td>Duty Cycle</td>
+                </tr>
+                <tr>
+                    <td><input type="range" value="200" min=0 max=1000 id="hz" onchange="showHZ()"/></td>
+                    <td><input type="range" value="20" min=0 max=100 id="dutycycle" onchange="showDutyCycle()"/></td>
+                </tr>
+                <tr>
+                    <td><div id="showHZ"></div></td>
+                    <td><div id="showDutyCycle"></div></td>
+                </tr>
+            </table>
+        </div>
+        <script>
+
+            showHZ();
+            showDutyCycle();
+
+            function showHZ(){
+                document.getElementById("showHZ").innerText=document.getElementById("hz").value;
+                postPWM();
+            }
+            function showDutyCycle(){
+                document.getElementById("showDutyCycle").innerText=document.getElementById("dutycycle").value;
+                postPWM();
+            }
+
+            function postPWM(){
+                axios.post('/pwm', {
+                    gpio: parseInt(document.getElementById("gpio").value, 10),
+                    hz: parseInt(document.getElementById("hz").value, 10),
+                    duty: parseInt(document.getElementById("dutycycle").value, 10)
+                })
+                .then(function (response) {
+                    console.log(response);
+                })
+                .catch(function (error) {
+                    console.log(error);
+                });
+            }
+
+            function onoff(){
+                postGpio();
+            }
+
+            function postPWM(){
+                axios.post('/pwm', {
+                    gpio: parseInt(document.getElementById("gpio").value, 10),
+                    hz: parseInt(document.getElementById("hz").value, 10),
+                    duty: parseInt(document.getElementById("dutycycle").value, 10)
+                })
+                .then(function (response) {
+                    console.log(response);
+                })
+                .catch(function (error) {
+                    console.log(error);
+                });
+            }
+            function postGpio(){
+                axios.post('/gpio', {
+                    gpio: parseInt(document.getElementById("gpio").value, 10)
+                })
+                .then(function (response) {
+                    console.log(response);
+                })
+                .catch(function (error) {
+                    console.log(error);
+                });
+            }
+        </script>
+    </body>
+</html>

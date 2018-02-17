@@ -214,6 +214,10 @@ func Pwm(pinNo int, freq int, duty int) {
 //it has to check for the stop condition on every iteration
 //If you need more precision, you need to use the Pwm function
 func SPwm(pinNo int, freq int, duty int) {
+
+	if stop[pinNo].Load().(bool) {
+		stop[pinNo].Store(false)
+	}
 	dutyCyle := (float32(duty)) / 100.0
 	period := (1.0 / float32(freq)) * 1000.0
 	periodHigh := period * dutyCyle
